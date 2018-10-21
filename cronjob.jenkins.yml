@@ -1,0 +1,51 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: jenkins-backup
+spec:
+  schedule: "40 18 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: jenkins-backup
+            image: govcloud/k8s-kubectl:v1.10.4
+            command: ["/bin/sh"]
+            env:
+              - name: AZURE_STORAGE_ACCOUNT
+                value: statcandata
+              - name: AZURE_STORAGE_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: azure-storage-statcandata
+                    key: password
+              - name: SLACK_CLI_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: azure-slack-statscloud
+                    key: password
+            args:
+            - -c
+            - pod_name=$(kubectl get pods -n default -l app=jenkins-jenkins -o jsonpath='{.items[*].metadata.name}');
+              kubectl exec $pod_name -n default -- tar -czvf jenkins-backup-$(date +%Y%m%d-%H%M).tgz /var/jenkins_home/;
+              backup_tar=$(kubectl exec $pod_name -- find / -maxdepth 1 -name 'jenkins-backup-*' | sort -t_ -nk2,2 | tail -n1);
+              kubectl cp default/$pod_name:$backup_tar .;
+              az storage blob upload --account-name $AZURE_STORAGE_ACCOUNT
+                --account-key $AZURE_STORAGE_KEY
+                --container-name backups
+                --type block
+                --file $(basename $backup_tar)
+                --name $(basename $backup_tar);
+              kubectl exec $pod_name -n default -- rm $backup_tar;
+              slack chat send
+                --author 'William Hearn'
+                --author-icon 'https://s.gravatar.com/avatar/eca9a4ec0967837e98593484bf64424a?s=80'
+                --author-link 'https://github.com/sylus'
+                --channel '#ci'
+                --color good
+                --footer "${AZURE_STORAGE_ACCOUNT} -> $(basename $backup_tar)"
+                --text 'The Jenkins cronjob initiated by Kubernetes has completed successfully.'
+                --title 'Jenkins Backup'
+                --title-link 'https://github.com/sylus';
+          restartPolicy: OnFailure
