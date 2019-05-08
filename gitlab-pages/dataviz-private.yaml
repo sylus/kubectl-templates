@@ -1,0 +1,16 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: dataviz-private
+  annotations:
+    ingress.kubernetes.io/auth-type: basic
+    ingress.kubernetes.io/auth-secret: gitlab-dataviz-auth
+spec:
+  rules:
+    - host: gitlab.k8s.cloud.statcan.ca
+      http:
+        paths:
+          - path: /dataviz-private
+            backend:
+              serviceName: gitlab-gitlab
+              servicePort: 8005

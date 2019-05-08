@@ -1,0 +1,13 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: laurent-gitlab-pages
+spec:
+  rules:
+    - host: laurent.goderre.pages.cloud.statcan.ca
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: gitlab-gitlab
+              servicePort: pages
