@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: jenkins-backup
 spec:
-  schedule: "40 18 * * *"
+  schedule: "40 6 * * *"
   jobTemplate:
     spec:
       template:
@@ -18,16 +18,16 @@ spec:
               - name: AZURE_STORAGE_KEY
                 valueFrom:
                   secretKeyRef:
-                    name: azure-storage-statcandata
                     key: password
+                    name: azure-storage-statcandata
               - name: SLACK_CLI_TOKEN
                 valueFrom:
                   secretKeyRef:
-                    name: azure-slack-statscloud
                     key: password
+                    name: azure-slack-statscloud
             args:
             - -c
-            - pod_name=$(kubectl get pods -n default -l app=jenkins-jenkins -o jsonpath='{.items[*].metadata.name}');
+            - pod_name=$(kubectl get pods -n ci -l app=jenkins -o jsonpath='{.items[*].metadata.name}');
               kubectl exec $pod_name -n default -- tar -czvf jenkins-backup-$(date +%Y%m%d-%H%M).tgz /var/jenkins_home/;
               backup_tar=$(kubectl exec $pod_name -- find / -maxdepth 1 -name 'jenkins-backup-*' | sort -t_ -nk2,2 | tail -n1);
               kubectl cp default/$pod_name:$backup_tar .;
